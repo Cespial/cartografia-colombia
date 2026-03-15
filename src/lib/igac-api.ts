@@ -1,8 +1,6 @@
 /**
  * IGAC ArcGIS REST API client with pagination support.
- *
- * Base URL: https://services2.arcgis.com/RVvWzU3lgJISqdke/ArcGIS/rest/services
- * Max 2,000 features per request — this client auto-paginates.
+ * Expanded to cover 15+ IGAC services.
  */
 
 const IGAC_BASE =
@@ -73,13 +71,11 @@ export async function queryIGAC(
       allFeatures.push(...data.features);
     }
 
-    // Check if there are more results
     hasMore =
       data.properties?.exceededTransferLimit === true ||
       (data.features?.length === resultRecordCount);
     offset += resultRecordCount;
 
-    // Safety: don't paginate more than 50 pages (100k features)
     if (offset > PAGE_SIZE * 50) break;
   }
 
@@ -89,9 +85,6 @@ export async function queryIGAC(
   };
 }
 
-/**
- * Fetch statistics from an IGAC service.
- */
 export async function queryIGACStats(
   serviceName: string,
   layerIndex: number = 0,
@@ -121,12 +114,28 @@ export async function queryIGACStats(
   return res.json();
 }
 
-// === Convenience functions for specific services ===
+// =====================================================================
+// Convenience functions — expanded to 60+ IGAC fields
+// =====================================================================
+
+/** All municipality fields (60+) */
+const MUNICIPIOS_FIELDS = [
+  "MpCodigo", "MpNombre", "Depto",
+  "ESTADO_RURAL", "ESTADO_URBANO",
+  "VIGENCIA_CATASTRAL_RURAL", "VIGENCIA_CATASTRAL_URBANA",
+  "MpArea", "MpAltitud",
+  "PREDIOS_RURALES", "PREDIOS_URBANOS", "Total_PREDIOS",
+  "AVALÚO_RURAL____E", "AVALÚO_URBANO_____E",
+  "AREA_GEOGRÁFICA_RURAL_HECTÁREAS", "AREA_GEOGRÁFICA_URBANA_HECTÁREA", "AREA_GEOGRÁFICA_TOTAL_HECTÁREAS",
+  "GESTOR_CATASTRAL", "PDET", "Ley617", "MpCategor",
+  "AÑO_PROGRAMADO", "META_FECHA",
+  "VALOR_ACTUALIZACIÓN_IGAC_POR_MU",
+  "Zona_de_intervención",
+].join(",");
 
 export async function fetchMunicipiosIGAC() {
   return queryIGAC("Municipios", 0, {
-    outFields:
-      "MpCodigo,MpNombre,Depto,ESTADO_RURAL,ESTADO_URBANO,VIGENCIA_CATASTRAL_RURAL,VIGENCIA_CATASTRAL_URBANA,MpArea,MpAltitud",
+    outFields: MUNICIPIOS_FIELDS,
     returnGeometry: false,
   });
 }
@@ -135,8 +144,37 @@ export async function fetchCoberturaEstado() {
   return queryIGACStats("Municipios", 0, "MpCodigo", "ESTADO_RURAL");
 }
 
+// --- Spatial layers ---
+
 export async function fetchHidrografia(bbox: string) {
   return queryIGAC("Hidrografia", 14, {
+    geometry: bbox,
+    geometryType: "esriGeometryEnvelope",
+    inSR: 4326,
+    spatialRel: "esriSpatialRelIntersects",
+  });
+}
+
+export async function fetchRiosDobles(bbox: string) {
+  return queryIGAC("Hidrografia", 26, {
+    geometry: bbox,
+    geometryType: "esriGeometryEnvelope",
+    inSR: 4326,
+    spatialRel: "esriSpatialRelIntersects",
+  });
+}
+
+export async function fetchLagunas(bbox: string) {
+  return queryIGAC("Hidrografia", 18, {
+    geometry: bbox,
+    geometryType: "esriGeometryEnvelope",
+    inSR: 4326,
+    spatialRel: "esriSpatialRelIntersects",
+  });
+}
+
+export async function fetchHumedales(bbox: string) {
+  return queryIGAC("Hidrografia", 38, {
     geometry: bbox,
     geometryType: "esriGeometryEnvelope",
     inSR: 4326,
@@ -151,5 +189,77 @@ export async function fetchCurvasNivel(bbox: string) {
     geometryType: "esriGeometryEnvelope",
     inSR: 4326,
     spatialRel: "esriSpatialRelIntersects",
+  });
+}
+
+// --- Thematic layers ---
+
+export async function fetchResguardosIndigenas() {
+  return queryIGAC("Resguardos_Indigenas", 0, {
+    outFields: "NOMBRE_RES,PUEBLO,DEPARTAMEN,MUNICIPIO,AREA_ACTO_,TIPO_ACTO_",
+    returnGeometry: true,
+  });
+}
+
+export async function fetchNBI() {
+  return queryIGAC("NBI_Municipios", 7, {
+    outFields: "MpCodigo,MpNombre,Depto,NBI,Rango",
+    returnGeometry: false,
+  });
+}
+
+export async function fetchDensidadPoblacional() {
+  return queryIGAC("Densidad_Poblacional", 1, {
+    outFields: "MpCodigo,MpNombre,Depto,V,RA",
+    returnGeometry: false,
+  });
+}
+
+export async function fetchAmenazaSismica() {
+  return queryIGAC("AmenazaSismica1_WFL1", 0, {
+    returnGeometry: true,
+  });
+}
+
+export async function fetchMovimientoMasa() {
+  return queryIGAC("Movimiento_masa_WFL1", 0, {
+    returnGeometry: true,
+  });
+}
+
+export async function fetchIncendiosForestales() {
+  return queryIGAC("IncendiosForestales_WFL1", 0, {
+    returnGeometry: true,
+  });
+}
+
+export async function fetchCoberturasTierra(bbox: string) {
+  return queryIGAC("Coberturas_de_la_tierra_WFL1", 0, {
+    geometry: bbox,
+    geometryType: "esriGeometryEnvelope",
+    inSR: 4326,
+    spatialRel: "esriSpatialRelIntersects",
+  });
+}
+
+export async function fetchCapacidadUso(bbox: string) {
+  return queryIGAC("capacidadusodelatierra", 0, {
+    geometry: bbox,
+    geometryType: "esriGeometryEnvelope",
+    inSR: 4326,
+    spatialRel: "esriSpatialRelIntersects",
+  });
+}
+
+export async function fetchFronteraAgricola() {
+  return queryIGAC("Frontera_Agricola", 0, {
+    returnGeometry: true,
+  });
+}
+
+export async function fetchGeneralidadesMunicipios() {
+  return queryIGAC("_Generalidades_Municipios", 0, {
+    outFields: "*",
+    returnGeometry: false,
   });
 }

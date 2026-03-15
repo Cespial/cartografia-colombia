@@ -8,7 +8,8 @@ import StatsOverview from "@/components/dashboard/StatsOverview";
 import SearchBar from "@/components/dashboard/SearchBar";
 import DepartmentRanking from "@/components/dashboard/DepartmentRanking";
 import MapLegend from "@/components/map/MapLegend";
-import { Map as MapIcon, BarChart3 } from "lucide-react";
+import Link from "next/link";
+import { Map as MapIcon, BarChart3, Layers, PieChart } from "lucide-react";
 
 const NationalMap = dynamic(() => import("@/components/map/NationalMap"), {
   ssr: false,
@@ -78,6 +79,12 @@ export default function HomePage() {
           </div>
         </div>
         <div className="flex items-center gap-4">
+          <Link href="/explorador" className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm text-gray-300 transition-colors">
+            <Layers className="w-4 h-4" /> Explorador
+          </Link>
+          <Link href="/cobertura" className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm text-gray-300 transition-colors">
+            <PieChart className="w-4 h-4" /> Cobertura
+          </Link>
           <div className="w-64">
             <SearchBar municipios={igacData} onSelect={handleSearch} />
           </div>

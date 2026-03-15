@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { DepartmentCoverage } from "@/types";
 import { ESTADO_COLORS } from "@/lib/coverage";
 
@@ -25,7 +26,7 @@ export default function DepartmentRanking({ departments }: DepartmentRankingProp
           const total = stats.total || 1;
 
           return (
-            <div key={dept.departamento} className="group">
+            <Link key={dept.departamento} href={`/departamento/${encodeURIComponent(dept.departamento)}`} className="block group">
               <div className="flex items-center justify-between text-sm mb-1">
                 <span className="text-gray-300 group-hover:text-white transition-colors">
                   {dept.departamento}
@@ -73,7 +74,7 @@ export default function DepartmentRanking({ departments }: DepartmentRankingProp
                   />
                 )}
               </div>
-            </div>
+            </Link>
           );
         })}
       </div>
