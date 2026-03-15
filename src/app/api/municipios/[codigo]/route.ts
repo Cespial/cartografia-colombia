@@ -38,15 +38,19 @@ export async function GET(
       fetchDesempenoMunicipal(codigo),
     ]);
 
-    const val = <T>(r: PromiseSettledResult<T>): T | null =>
-      r.status === "fulfilled" ? r.value : null;
+    const val = <T>(r: PromiseSettledResult<T>, name: string): T | null => {
+      if (r.status === "rejected") {
+        console.error(`[${codigo}] ${name} failed:`, r.reason?.message ?? r.reason);
+      }
+      return r.status === "fulfilled" ? r.value : null;
+    };
 
-    const educacion = val(educacionRaw) as Record<string, unknown>[] | null;
-    const homicidios = val(homicidiosRaw) as Record<string, unknown>[] | null;
-    const agricultura = val(agriculturaRaw) as Record<string, unknown>[] | null;
-    const telco = val(telcoRaw) as Record<string, unknown>[] | null;
-    const turismo = val(turismoRaw) as Record<string, unknown>[] | null;
-    const desempeno = val(desempenoRaw) as Record<string, unknown>[] | null;
+    const educacion = val(educacionRaw, "educacion") as Record<string, unknown>[] | null;
+    const homicidios = val(homicidiosRaw, "homicidios") as Record<string, unknown>[] | null;
+    const agricultura = val(agriculturaRaw, "agricultura") as Record<string, unknown>[] | null;
+    const telco = val(telcoRaw, "telco") as Record<string, unknown>[] | null;
+    const turismo = val(turismoRaw, "turismo") as Record<string, unknown>[] | null;
+    const desempeno = val(desempenoRaw, "desempeno") as Record<string, unknown>[] | null;
 
     const result = {
       codigo,

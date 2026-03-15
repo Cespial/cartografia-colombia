@@ -13,11 +13,9 @@ export async function fetchDatosGov(
   const headers: Record<string, string> = {
     Accept: "application/json",
   };
-  const appToken = process.env.DATOS_GOV_APP_TOKEN;
-  if (appToken) {
-    headers["X-App-Token"] = appToken;
-  }
-  const res = await fetch(url, { headers, next: { revalidate: 3600 } });
+  // Note: X-App-Token skipped — current token is invalid and datos.gov.co
+  // returns 403 with it. Without token, API works fine (throttled >1k req/hr).
+  const res = await fetch(url, { headers, cache: "no-store" });
   if (!res.ok) throw new Error(`datos.gov.co API error: ${res.status}`);
   return res.json();
 }
