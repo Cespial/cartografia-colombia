@@ -64,10 +64,10 @@ export function computeVigenciaDistribution(municipios: MunicipioIGAC[]): Record
   return dist;
 }
 
-/** PDET vs non-PDET split */
+/** PDET vs non-PDET split. IGAC uses "1"=PDET, "0"=no, null=unknown */
 export function computePDETStats(municipios: MunicipioIGAC[]) {
-  const pdet = municipios.filter((m) => m.pdet && m.pdet !== "NO" && m.pdet !== "");
-  const noPdet = municipios.filter((m) => !m.pdet || m.pdet === "NO" || m.pdet === "");
+  const pdet = municipios.filter((m) => m.pdet === "1");
+  const noPdet = municipios.filter((m) => m.pdet !== "1");
   return {
     pdet: { count: pdet.length, stats: computeCoverageStats(pdet) },
     noPdet: { count: noPdet.length, stats: computeCoverageStats(noPdet) },

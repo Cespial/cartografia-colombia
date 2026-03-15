@@ -213,7 +213,7 @@ export default function MunicipioPage({ params }: { params: Promise<{ codigo: st
                 {municipio.ley617 && (
                   <div className="flex justify-between"><span className="text-gray-500">Ley 617</span><span className="text-gray-300">{municipio.ley617}</span></div>
                 )}
-                {municipio.pdet && municipio.pdet !== "NO" && (
+                {municipio.pdet === "1" && (
                   <div className="flex justify-between"><span className="text-gray-500">PDET</span><span className="text-emerald-400 font-medium">Sí</span></div>
                 )}
                 {municipio.prediosRurales != null && (

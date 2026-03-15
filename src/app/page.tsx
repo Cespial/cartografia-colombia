@@ -9,7 +9,8 @@ import SearchBar from "@/components/dashboard/SearchBar";
 import DepartmentRanking from "@/components/dashboard/DepartmentRanking";
 import MapLegend from "@/components/map/MapLegend";
 import Link from "next/link";
-import { Map as MapIcon, BarChart3, Layers, PieChart, X, Menu } from "lucide-react";
+import TensorLogo from "@/components/ui/TensorLogo";
+import { BarChart3, Layers, PieChart, X } from "lucide-react";
 
 const NationalMap = dynamic(() => import("@/components/map/NationalMap"), {
   ssr: false,
@@ -61,14 +62,14 @@ export default function HomePage() {
       <header className="bg-gray-900/95 backdrop-blur-sm border-b border-gray-800 px-3 sm:px-6 py-2.5 z-20 flex-shrink-0">
         {/* Top row: logo + actions */}
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <MapIcon className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400 flex-shrink-0" />
+          <div className="flex items-center gap-2.5 min-w-0">
+            <TensorLogo size={24} showText={false} />
             <div className="min-w-0">
               <h1 className="text-sm sm:text-lg font-bold text-white truncate">
                 Cartografía Colombia
               </h1>
               <p className="text-[10px] sm:text-xs text-gray-500 hidden sm:block">
-                Estado catastral de 1,122 municipios · <span className="text-emerald-500">tensor.lat</span>
+                Estado catastral · 1,122 municipios
               </p>
             </div>
           </div>
@@ -100,11 +101,10 @@ export default function HomePage() {
         </div>
 
         {/* Mobile nav row */}
-        <div className="flex sm:hidden items-center gap-2 mt-2 text-[10px] text-gray-500">
-          <span className="text-emerald-500">tensor.lat</span>
-          <span>·</span>
+        <div className="flex sm:hidden items-center gap-3 mt-2 text-[11px]">
+          <TensorLogo size={16} showText={true} className="text-[11px]" />
+          <span className="text-gray-700">|</span>
           <Link href="/explorador" className="text-gray-400 hover:text-white">Explorador</Link>
-          <span>·</span>
           <Link href="/cobertura" className="text-gray-400 hover:text-white">Cobertura</Link>
         </div>
       </header>
@@ -178,10 +178,8 @@ export default function HomePage() {
               <DepartmentRanking departments={departments} />
 
               {/* tensor.lat footer */}
-              <div className="pt-3 border-t border-gray-800 text-center">
-                <p className="text-[10px] text-gray-600">
-                  Desarrollado por <span className="text-emerald-500 font-medium">tensor.lat</span>
-                </p>
+              <div className="pt-3 border-t border-gray-800 flex justify-center">
+                <TensorLogo size={18} showText={true} />
               </div>
             </aside>
           </>
