@@ -131,13 +131,14 @@ export async function fetchIPS(municipio: string, departamento: string) {
   });
 }
 
-/** Homicide counts for a municipality */
+/** Homicide counts for a municipality (DANE code without leading zeros) */
 export async function fetchHomicidios(codigoMunicipio: string) {
+  const codeNoLeadingZeros = String(parseInt(codigoMunicipio));
   return fetchDatosGov(DATASETS.homicidios, {
-    $where: `codigo_dane_municipio='${codigoMunicipio}'`,
-    $select: "a_o,count(*) as cantidad",
-    $group: "a_o",
-    $order: "a_o DESC",
+    $where: `codigo_dane_municipio='${codeNoLeadingZeros}'`,
+    $select: "a_o_del_hecho,count(*) as cantidad",
+    $group: "a_o_del_hecho",
+    $order: "a_o_del_hecho DESC",
     $limit: "10",
   });
 }

@@ -367,9 +367,9 @@ function SeguridadTab({ enrichment }: { enrichment: any }) {
             <th className="text-right py-2 text-gray-400">Homicidios</th>
           </tr></thead>
           <tbody>
-            {homicidios.map((h: any) => (
-              <tr key={h.a_o} className="border-b border-gray-800">
-                <td className="py-2 text-gray-300">{h.a_o}</td>
+            {homicidios.map((h: any, i: number) => (
+              <tr key={i} className="border-b border-gray-800">
+                <td className="py-2 text-gray-300">{h.a_o_del_hecho ?? h.a_o}</td>
                 <td className="py-2 text-right font-mono text-white">{h.cantidad}</td>
               </tr>
             ))}
@@ -433,9 +433,14 @@ function InfraestructuraTab({ enrichment, municipio }: { enrichment: any; munici
               {telco.map((t: any, i: number) => (
                 <tr key={i} className="border-b border-gray-800">
                   <td className="py-2 text-gray-300">{t.proveedor ?? t.operador ?? "—"}</td>
-                  {["2g", "3g", "4g", "lte"].map((tech) => (
-                    <td key={tech} className="py-2 text-center">
-                      {(t[`cobertura_${tech}`] === "SI" || t[`${tech}`] === "1") ?
+                  {[
+                    { key: "cobertura_2g", label: "2G" },
+                    { key: "cobertura_3g", label: "3G" },
+                    { key: "cobertuta_4g", label: "4G" },
+                    { key: "cobertura_lte", label: "LTE" },
+                  ].map(({ key }) => (
+                    <td key={key} className="py-2 text-center">
+                      {(t[key] === "S" || t[key] === "SI") ?
                         <span className="text-green-400">Si</span> :
                         <span className="text-gray-600">—</span>}
                     </td>
