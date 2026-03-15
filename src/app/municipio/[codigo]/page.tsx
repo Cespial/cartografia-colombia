@@ -20,7 +20,7 @@ const MunicipalMap = dynamic(() => import("@/components/map/MunicipalMap"), {
   ),
 });
 
-type Tab = "general" | "educacion" | "salud" | "seguridad" | "agricultura" | "infraestructura";
+type Tab = "general" | "educacion" | "salud" | "seguridad" | "agricultura" | "infraestructura" | "conflicto" | "clima" | "emergencias";
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "general", label: "General", icon: Building2 },
@@ -28,7 +28,10 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "salud", label: "Salud", icon: HeartPulse },
   { id: "seguridad", label: "Seguridad", icon: ShieldAlert },
   { id: "agricultura", label: "Agricultura", icon: Wheat },
-  { id: "infraestructura", label: "Infraestructura", icon: Signal },
+  { id: "infraestructura", label: "Conectividad", icon: Signal },
+  { id: "emergencias", label: "Emergencias", icon: AlertTriangle },
+  { id: "conflicto", label: "Conflicto", icon: Landmark },
+  { id: "clima", label: "Clima", icon: Mountain },
 ];
 
 function StatusIcon({ estado }: { estado: string }) {
@@ -83,16 +86,20 @@ export default function MunicipioPage({ params }: { params: Promise<{ codigo: st
     loadData();
   }, [codigo]);
 
-  // Fetch enrichment data from datos.gov.co
+  // Fetch enrichment data from datos.gov.co (pass nombre & departamento for IPS/IDEAM)
   useEffect(() => {
-    if (!codigo) return;
+    if (!codigo || !municipio) return;
     setEnrichLoading(true);
-    fetch(`/api/municipios/${codigo}`)
+    const params = new URLSearchParams({
+      nombre: municipio.nombre,
+      departamento: municipio.departamento,
+    });
+    fetch(`/api/municipios/${codigo}?${params}`)
       .then((r) => r.json())
       .then(setEnrichment)
       .catch(() => setEnrichment(null))
       .finally(() => setEnrichLoading(false));
-  }, [codigo]);
+  }, [codigo, municipio]);
 
   if (loading) {
     return (
@@ -261,10 +268,13 @@ export default function MunicipioPage({ params }: { params: Promise<{ codigo: st
               <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-5">
                 {activeTab === "general" && <GeneralTab municipio={municipio} enrichment={enrichment} />}
                 {activeTab === "educacion" && <EducacionTab enrichment={enrichment} />}
-                {activeTab === "salud" && <SaludTab enrichment={enrichment} municipio={municipio} />}
+                {activeTab === "salud" && <SaludTab enrichment={enrichment} />}
                 {activeTab === "seguridad" && <SeguridadTab enrichment={enrichment} />}
                 {activeTab === "agricultura" && <AgriculturaTab enrichment={enrichment} />}
-                {activeTab === "infraestructura" && <InfraestructuraTab enrichment={enrichment} municipio={municipio} />}
+                {activeTab === "infraestructura" && <InfraestructuraTab enrichment={enrichment} />}
+                {activeTab === "emergencias" && <EmergenciasTab enrichment={enrichment} />}
+                {activeTab === "conflicto" && <ConflictoTab enrichment={enrichment} />}
+                {activeTab === "clima" && <ClimaTab enrichment={enrichment} />}
               </div>
             )}
           </div>
@@ -324,31 +334,42 @@ function EducacionTab({ enrichment }: { enrichment: any }) {
   );
 }
 
-function SaludTab({ enrichment, municipio }: { enrichment: any; municipio: MunicipioIGAC }) {
-  const [ips, setIps] = useState<any[]>([]);
-  const [loadingIps, setLoadingIps] = useState(false);
-
-  useEffect(() => {
-    setLoadingIps(true);
-    fetch(`/api/municipios/${municipio.codigo}`)
-      .then(r => r.json())
-      .then(() => {
-        // IPS data would need a separate endpoint, show what we have
-        setIps([]);
-      })
-      .catch(() => setIps([]))
-      .finally(() => setLoadingIps(false));
-  }, [municipio.codigo]);
-
+function SaludTab({ enrichment }: { enrichment: any }) {
+  const salud = enrichment?.salud;
+  if (!salud || salud.totalIPS === 0) return <EmptyState text="No se encontraron IPS registradas para este municipio" />;
   return (
     <div className="space-y-4">
-      <h3 className="font-semibold text-white text-lg">Salud</h3>
+      <h3 className="font-semibold text-white text-lg">Salud ({salud.totalIPS} IPS)</h3>
       <p className="text-xs text-gray-500">Fuente: MinSalud REPS — datos.gov.co</p>
-      {loadingIps ? (
-        <div className="flex items-center gap-2 text-gray-500"><Loader2 className="w-4 h-4 animate-spin" /> Cargando...</div>
-      ) : ips.length === 0 ? (
-        <EmptyState text="Datos de IPS disponibles vía API directa. Próximamente se integrarán al detalle." />
-      ) : null}
+      {Object.keys(salud.porNivel).length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-3">
+          {Object.entries(salud.porNivel).map(([nivel, count]) => (
+            <span key={nivel} className="px-3 py-1 bg-gray-700/50 rounded-full text-sm text-gray-300">
+              {nivel === "null" || nivel === "None" ? "Sin nivel" : `Nivel ${nivel}`}: <span className="font-mono text-white">{count as number}</span>
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead><tr className="border-b border-gray-700">
+            <th className="text-left py-2 text-gray-400">Nombre</th>
+            <th className="text-center py-2 text-gray-400">Nivel</th>
+            <th className="text-center py-2 text-gray-400">Carácter</th>
+            <th className="text-center py-2 text-gray-400">Habilitado</th>
+          </tr></thead>
+          <tbody>
+            {salud.establecimientos.map((ips: any, i: number) => (
+              <tr key={i} className="border-b border-gray-800">
+                <td className="py-2 text-gray-300 max-w-[300px] truncate">{ips.nombre}</td>
+                <td className="py-2 text-center text-gray-400">{ips.nivel ?? "—"}</td>
+                <td className="py-2 text-center text-gray-400">{ips.caracter ?? "—"}</td>
+                <td className="py-2 text-center">{ips.habilitado === "SI" ? <span className="text-green-400">Sí</span> : <span className="text-gray-600">No</span>}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -413,7 +434,7 @@ function AgriculturaTab({ enrichment }: { enrichment: any }) {
   );
 }
 
-function InfraestructuraTab({ enrichment, municipio }: { enrichment: any; municipio: MunicipioIGAC }) {
+function InfraestructuraTab({ enrichment }: { enrichment: any }) {
   const telco = enrichment?.telecomunicaciones ?? [];
   return (
     <div className="space-y-4">
@@ -452,6 +473,147 @@ function InfraestructuraTab({ enrichment, municipio }: { enrichment: any; munici
         </div>
       ) : (
         <EmptyState text="No se encontraron datos de cobertura telecomunicaciones" />
+      )}
+    </div>
+  );
+}
+
+function EmergenciasTab({ enrichment }: { enrichment: any }) {
+  const emergencias = enrichment?.emergencias ?? [];
+  if (emergencias.length === 0) return <EmptyState text="No se encontraron emergencias registradas (UNGRD)" />;
+  return (
+    <div className="space-y-4">
+      <h3 className="font-semibold text-white text-lg">Emergencias ({emergencias.length})</h3>
+      <p className="text-xs text-gray-500">Fuente: UNGRD — datos.gov.co</p>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead><tr className="border-b border-gray-700">
+            <th className="text-left py-2 text-gray-400">Fecha</th>
+            <th className="text-left py-2 text-gray-400">Evento</th>
+            <th className="text-right py-2 text-gray-400">Fallecidos</th>
+            <th className="text-right py-2 text-gray-400">Heridos</th>
+            <th className="text-right py-2 text-gray-400">Personas</th>
+            <th className="text-right py-2 text-gray-400">Viviendas dest.</th>
+          </tr></thead>
+          <tbody>
+            {emergencias.map((e: any, i: number) => (
+              <tr key={i} className="border-b border-gray-800">
+                <td className="py-2 text-gray-400">{e.fecha?.slice(0, 10) ?? "—"}</td>
+                <td className="py-2 text-gray-300">{e.evento}</td>
+                <td className="py-2 text-right font-mono text-white">{e.fallecidos || "—"}</td>
+                <td className="py-2 text-right font-mono text-white">{e.heridos || "—"}</td>
+                <td className="py-2 text-right font-mono text-white">{e.personas || "—"}</td>
+                <td className="py-2 text-right font-mono text-white">{e.viviendasDestruidas || "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function ConflictoTab({ enrichment }: { enrichment: any }) {
+  const conflicto = enrichment?.conflicto;
+  const map = conflicto?.victimasMAP ?? [];
+  const masacres = conflicto?.masacres ?? [];
+  if (map.length === 0 && masacres.length === 0) return <EmptyState text="No se encontraron registros de conflicto armado para este municipio" />;
+  return (
+    <div className="space-y-6">
+      <h3 className="font-semibold text-white text-lg">Conflicto Armado</h3>
+      <p className="text-xs text-gray-500">Fuente: SIEVCAC — datos.gov.co</p>
+      {map.length > 0 && (
+        <div>
+          <h4 className="text-sm font-medium text-red-400 mb-2">Víctimas Minas Antipersonal (MAP/MUSE)</h4>
+          <div className="flex flex-wrap gap-2">
+            {map.map((m: any, i: number) => (
+              <span key={i} className="px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-full text-sm">
+                <span className="text-gray-400">{m.a_o}:</span> <span className="text-red-400 font-mono">{m.cantidad}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+      {masacres.length > 0 && (
+        <div>
+          <h4 className="text-sm font-medium text-orange-400 mb-2">Masacres</h4>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b border-gray-700">
+                <th className="text-left py-2 text-gray-400">Año</th>
+                <th className="text-right py-2 text-gray-400">Casos</th>
+                <th className="text-right py-2 text-gray-400">Víctimas</th>
+              </tr></thead>
+              <tbody>
+                {masacres.map((m: any, i: number) => (
+                  <tr key={i} className="border-b border-gray-800">
+                    <td className="py-2 text-gray-300">{m.a_o}</td>
+                    <td className="py-2 text-right font-mono text-white">{m.casos}</td>
+                    <td className="py-2 text-right font-mono text-orange-400">{m.victimas}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ClimaTab({ enrichment }: { enrichment: any }) {
+  const clima = enrichment?.clima;
+  const precip = clima?.precipitacion ?? [];
+  const temp = clima?.temperatura ?? [];
+  if (precip.length === 0 && temp.length === 0) return <EmptyState text="No se encontraron normales climatológicas IDEAM para este municipio" />;
+  const meses = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+  return (
+    <div className="space-y-6">
+      <h3 className="font-semibold text-white text-lg">Clima (Normales Climatológicas)</h3>
+      <p className="text-xs text-gray-500">Fuente: IDEAM — datos.gov.co</p>
+      {precip.length > 0 && (
+        <div>
+          <h4 className="text-sm font-medium text-blue-400 mb-2">Precipitación (mm)</h4>
+          {precip.map((p: any, i: number) => (
+            <div key={i} className="mb-3">
+              <p className="text-xs text-gray-500 mb-1">{p.estacion} ({p.altitud}m)</p>
+              <div className="flex gap-1">
+                {meses.map((m) => {
+                  const val = Number(p[m] ?? 0);
+                  const maxVal = Math.max(...meses.map((mm) => Number(p[mm] ?? 0)), 1);
+                  return (
+                    <div key={m} className="flex-1 text-center">
+                      <div className="h-16 flex items-end justify-center mb-1">
+                        <div className="w-full bg-blue-500/60 rounded-t" style={{ height: `${(val / maxVal) * 100}%` }} />
+                      </div>
+                      <p className="text-[9px] text-gray-500">{m}</p>
+                      <p className="text-[9px] font-mono text-gray-400">{Math.round(val)}</p>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Anual: <span className="font-mono text-blue-400">{p.anual} mm</span></p>
+            </div>
+          ))}
+        </div>
+      )}
+      {temp.length > 0 && (
+        <div>
+          <h4 className="text-sm font-medium text-orange-400 mb-2">Temperatura Media (°C)</h4>
+          {temp.map((t: any, i: number) => (
+            <div key={i} className="mb-3">
+              <p className="text-xs text-gray-500 mb-1">{t.estacion} ({t.altitud}m)</p>
+              <div className="flex gap-2 flex-wrap">
+                {meses.map((m) => (
+                  <span key={m} className="px-2 py-1 bg-gray-700/50 rounded text-xs">
+                    <span className="text-gray-500">{m}:</span> <span className="font-mono text-orange-300">{t[m]}°</span>
+                  </span>
+                ))}
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Anual: <span className="font-mono text-orange-400">{t.anual}°C</span></p>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

@@ -158,11 +158,11 @@ export async function fetchCoberturaTelco(codigoMunicipio: string) {
   });
 }
 
-/** UNGRD emergencies for a municipality */
-export async function fetchEmergencias(municipio: string) {
+/** UNGRD emergencies for a municipality (uses divipola code) */
+export async function fetchEmergencias(codigoMunicipio: string) {
   return fetchDatosGov(DATASETS.emergenciasUNGRD, {
-    $where: `upper(municipio)='${municipio.toUpperCase()}'`,
-    $order: "fecha_del_evento DESC",
+    $where: `divipola='${codigoMunicipio}'`,
+    $order: "fecha DESC",
     $limit: "50",
   });
 }
@@ -193,11 +193,48 @@ export async function fetchMineria(municipio: string) {
   });
 }
 
-/** FUT municipal income */
+/** FUT municipal income — FUT uses hierarchical codes, filter by TI (total ingresos) */
 export async function fetchFUT(codigoMunicipio: string) {
   return fetchDatosGov(DATASETS.futIngresos, {
-    $where: `codigo='${codigoMunicipio}'`,
-    $order: "vigencia DESC",
-    $limit: "10",
+    $where: `codigo='TI'`,
+    $limit: "1",
+  });
+}
+
+/** Víctimas MAP/MUSE (minas antipersonal) */
+export async function fetchVictimasMAP(codigoMunicipio: string) {
+  return fetchDatosGov(DATASETS.victimasMAP, {
+    $where: `c_digo_dane_de_municipio='${codigoMunicipio}'`,
+    $select: "a_o,count(*) as cantidad",
+    $group: "a_o",
+    $order: "a_o DESC",
+    $limit: "20",
+  });
+}
+
+/** Masacres by municipality */
+export async function fetchMasacres(codigoMunicipio: string) {
+  return fetchDatosGov(DATASETS.masacres, {
+    $where: `c_digo_dane_de_municipio='${codigoMunicipio}'`,
+    $select: "a_o,count(*) as casos,sum(total_de_v_ctimas_del_caso) as victimas",
+    $group: "a_o",
+    $order: "a_o DESC",
+    $limit: "20",
+  });
+}
+
+/** IDEAM precipitation normals for a municipality */
+export async function fetchClimaPrecipitacion(municipio: string) {
+  return fetchDatosGov(DATASETS.normalesClimatologicas, {
+    $where: `municipio='${municipio}' AND par_metro='PRECIPITACIÓN'`,
+    $limit: "5",
+  });
+}
+
+/** IDEAM temperature normals for a municipality */
+export async function fetchClimaTemperatura(municipio: string) {
+  return fetchDatosGov(DATASETS.normalesClimatologicas, {
+    $where: `municipio='${municipio}' AND par_metro='TEMPERATURA MEDIA'`,
+    $limit: "5",
   });
 }
