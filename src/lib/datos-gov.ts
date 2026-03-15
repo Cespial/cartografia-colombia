@@ -238,3 +238,136 @@ export async function fetchClimaTemperatura(municipio: string) {
     $limit: "5",
   });
 }
+
+// =====================================================================
+// NEW: Expanded fetch functions (Phase 1a)
+// =====================================================================
+
+/** Delitos sexuales by municipality (codigo_dane is 8 digits, match first 5) */
+export async function fetchDelitosSexuales(codigoMunicipio: string) {
+  return fetchDatosGov(DATASETS.delitosSexuales, {
+    $where: `starts_with(codigo_dane,'${codigoMunicipio}')`,
+    $select: "count(*) as total",
+  });
+}
+
+/** Violencia intrafamiliar by municipality */
+export async function fetchViolenciaIntrafamiliar(codigoMunicipio: string) {
+  return fetchDatosGov(DATASETS.violenciaIntrafamiliar, {
+    $where: `starts_with(codigo_dane,'${codigoMunicipio}')`,
+    $select: "count(*) as total",
+  });
+}
+
+/** Hurtos by municipality */
+export async function fetchHurtos(codigoMunicipio: string) {
+  return fetchDatosGov(DATASETS.hurtoModalidades, {
+    $where: `starts_with(codigo_dane,'${codigoMunicipio}')`,
+    $select: "count(*) as total",
+  });
+}
+
+/** Suicidios by municipality (uses codigo_dane_municipio without leading zeros) */
+export async function fetchSuicidios(codigoMunicipio: string) {
+  const code = String(parseInt(codigoMunicipio));
+  return fetchDatosGov(DATASETS.suicidios, {
+    $where: `codigo_dane_municipio='${code}'`,
+    $select: "a_o_del_hecho as anio,count(*) as cantidad",
+    $group: "a_o_del_hecho",
+    $order: "a_o_del_hecho DESC",
+    $limit: "20",
+  });
+}
+
+/** Ataques terroristas by municipality */
+export async function fetchAtaquesTerroristas(codigoMunicipio: string) {
+  return fetchDatosGov(DATASETS.ataquesTerrroristas, {
+    $where: `c_digo_dane_de_municipio='${codigoMunicipio}'`,
+    $select: "a_o,count(*) as cantidad",
+    $group: "a_o",
+    $order: "a_o DESC",
+    $limit: "20",
+  });
+}
+
+/** Desaparición forzada by municipality */
+export async function fetchDesaparicionForzada(codigoMunicipio: string) {
+  return fetchDatosGov(DATASETS.desaparicionForzada, {
+    $where: `c_digo_dane_de_municipio='${codigoMunicipio}'`,
+    $select: "a_o,count(*) as cantidad",
+    $group: "a_o",
+    $order: "a_o DESC",
+    $limit: "20",
+  });
+}
+
+/** SGR projects by municipality executor code */
+export async function fetchProyectosSGR(codigoMunicipio: string) {
+  const code = String(parseInt(codigoMunicipio));
+  return fetchDatosGov(DATASETS.proyectosSGR, {
+    $where: `codejecutor='${code}'`,
+    $order: "valortotal DESC",
+    $limit: "50",
+  });
+}
+
+/** BDUA contributivo population by municipality */
+export async function fetchBDUAContributivo(municipio: string) {
+  return fetchDatosGov(DATASETS.bduaContributivo, {
+    $where: `upper(mnc_nombre)='${municipio.toUpperCase()}'`,
+    $select: "ent_nombre,sum(cantidad) as total",
+    $group: "ent_nombre",
+    $order: "total DESC",
+    $limit: "20",
+  });
+}
+
+/** BDUA subsidiado population by municipality */
+export async function fetchBDUASubsidiado(municipio: string) {
+  return fetchDatosGov(DATASETS.bduaSubsidiado, {
+    $where: `upper(mnc_nombre)='${municipio.toUpperCase()}'`,
+    $select: "ent_nombre,sum(cantidad) as total",
+    $group: "ent_nombre",
+    $order: "total DESC",
+    $limit: "20",
+  });
+}
+
+/** Aeropuertos by municipality */
+export async function fetchAeropuertos(municipio: string) {
+  return fetchDatosGov(DATASETS.aeropuertosSatena, {
+    $where: `upper(ciudad)='${municipio.toUpperCase()}'`,
+    $limit: "10",
+  });
+}
+
+/** Education stats by department */
+export async function fetchEducacionDepartamento(departamento: string) {
+  return fetchDatosGov(DATASETS.educacionDepartamento, {
+    $where: `upper(departamento)='${departamento.toUpperCase()}'`,
+    $order: "ano DESC",
+    $limit: "5",
+  });
+}
+
+/** PIB departamental */
+export async function fetchPIBDepartamental(departamento: string) {
+  return fetchDatosGov(DATASETS.pibDepartamental, {
+    $where: `upper(departamento)='${departamento.toUpperCase()}'`,
+    $select: "a_o,actividad,valor_miles_de_millones_de,tipo_de_precios",
+    $order: "a_o DESC",
+    $limit: "50",
+  });
+}
+
+/** Educación superior by municipality */
+export async function fetchEducacionSuperior(codigoMunicipio: string) {
+  const code = String(parseInt(codigoMunicipio));
+  return fetchDatosGov(DATASETS.educacionSuperior, {
+    $where: `c_digo_del_municipio_programa='${codigoMunicipio}' OR c_digo_del_municipio_programa='${code}'`,
+    $select: "programa_acad_mico,instituci_n_de_educaci_n_superior_ies,a_o,semestre,sum(matriculados_2015) as matriculados",
+    $group: "programa_acad_mico,instituci_n_de_educaci_n_superior_ies,a_o,semestre",
+    $order: "a_o DESC,semestre DESC",
+    $limit: "50",
+  });
+}

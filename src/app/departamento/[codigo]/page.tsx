@@ -11,7 +11,7 @@ import {
   formatCOP,
 } from "@/lib/coverage";
 import type { EstadoCatastral } from "@/types";
-import { ArrowLeft, MapPin, Building2, Users, ChevronUp, ChevronDown } from "lucide-react";
+import { ArrowLeft, MapPin, Building2, Users, ChevronUp, ChevronDown, GraduationCap, Banknote, Loader2 } from "lucide-react";
 import MapGL, {
   Source,
   Layer,
@@ -246,6 +246,11 @@ export default function DepartamentoPage({
   const [deptGeoJSON, setDeptGeoJSON] = useState<GeoJSON.FeatureCollection | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Department enrichment
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [deptEnrichment, setDeptEnrichment] = useState<any>(null);
+  const [deptEnrichLoading, setDeptEnrichLoading] = useState(false);
+
   // Sorting state
   const [sortKey, setSortKey] = useState<SortKey>("nombre");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
@@ -288,6 +293,17 @@ export default function DepartamentoPage({
 
     loadData();
   }, [departmentName]);
+
+  // Fetch department enrichment (education + PIB)
+  useEffect(() => {
+    if (!departmentName || loading) return;
+    setDeptEnrichLoading(true);
+    fetch(`/api/departamentos/${encodeURIComponent(departmentName)}`)
+      .then((r) => r.json())
+      .then(setDeptEnrichment)
+      .catch(() => setDeptEnrichment(null))
+      .finally(() => setDeptEnrichLoading(false));
+  }, [departmentName, loading]);
 
   // ── Computed stats ──────────────────────────────────────────────────────
 
@@ -537,6 +553,94 @@ export default function DepartamentoPage({
             </p>
           </div>
         </div>
+
+        {/* Department enrichment — education + PIB */}
+        {deptEnrichLoading ? (
+          <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-6 flex items-center justify-center">
+            <Loader2 className="w-5 h-5 text-gray-500 animate-spin" />
+            <span className="ml-2 text-gray-500 text-sm">Cargando datos departamentales...</span>
+          </div>
+        ) : deptEnrichment && (deptEnrichment.educacion || deptEnrichment.pib?.totalMilesMM) ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Education card */}
+            {deptEnrichment.educacion && (
+              <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <GraduationCap className="w-5 h-5 text-blue-400" />
+                  <h3 className="font-semibold text-white">Educación ({deptEnrichment.educacion.ano})</h3>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  {deptEnrichment.educacion.cobertura_neta && (
+                    <div>
+                      <p className="text-xs text-gray-500">Cobertura neta</p>
+                      <p className="text-lg font-mono text-white">{deptEnrichment.educacion.cobertura_neta}%</p>
+                    </div>
+                  )}
+                  {deptEnrichment.educacion.desercion && (
+                    <div>
+                      <p className="text-xs text-gray-500">Deserción</p>
+                      <p className="text-lg font-mono text-orange-400">{deptEnrichment.educacion.desercion}%</p>
+                    </div>
+                  )}
+                  {deptEnrichment.educacion.cobertura_neta_primaria && (
+                    <div>
+                      <p className="text-xs text-gray-500">Primaria (neta)</p>
+                      <p className="font-mono text-gray-300">{deptEnrichment.educacion.cobertura_neta_primaria}%</p>
+                    </div>
+                  )}
+                  {deptEnrichment.educacion.cobertura_neta_secundaria && (
+                    <div>
+                      <p className="text-xs text-gray-500">Secundaria (neta)</p>
+                      <p className="font-mono text-gray-300">{deptEnrichment.educacion.cobertura_neta_secundaria}%</p>
+                    </div>
+                  )}
+                  {deptEnrichment.educacion.cobertura_neta_media && (
+                    <div>
+                      <p className="text-xs text-gray-500">Media (neta)</p>
+                      <p className="font-mono text-gray-300">{deptEnrichment.educacion.cobertura_neta_media}%</p>
+                    </div>
+                  )}
+                  {deptEnrichment.educacion.tamano_promedio_grupo && (
+                    <div>
+                      <p className="text-xs text-gray-500">Alumnos/grupo</p>
+                      <p className="font-mono text-gray-300">{deptEnrichment.educacion.tamano_promedio_grupo}</p>
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-gray-600 mt-3">Fuente: MEN — datos.gov.co</p>
+              </div>
+            )}
+
+            {/* PIB card */}
+            {deptEnrichment.pib?.totalMilesMM && (
+              <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Banknote className="w-5 h-5 text-emerald-400" />
+                  <h3 className="font-semibold text-white">PIB ({deptEnrichment.pib.anio})</h3>
+                </div>
+                <div className="mb-3">
+                  <p className="text-xs text-gray-500">PIB Total (precios corrientes)</p>
+                  <p className="text-2xl font-mono text-emerald-400">
+                    ${Number(deptEnrichment.pib.totalMilesMM).toLocaleString(undefined, { maximumFractionDigits: 1 })} B
+                  </p>
+                  <p className="text-xs text-gray-500">Miles de millones COP</p>
+                </div>
+                {deptEnrichment.pib.sectores?.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs text-gray-500 font-medium">Principales sectores</p>
+                    {deptEnrichment.pib.sectores.slice(0, 5).map((s: { actividad: string; valor: number }, i: number) => (
+                      <div key={i} className="flex justify-between text-sm">
+                        <span className="text-gray-400 truncate mr-2">{s.actividad}</span>
+                        <span className="text-white font-mono flex-shrink-0">${s.valor.toFixed(1)}B</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-gray-600 mt-3">Fuente: DANE — datos.gov.co</p>
+              </div>
+            )}
+          </div>
+        ) : null}
 
         {/* Map */}
         <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl overflow-hidden h-[500px]">

@@ -8,7 +8,7 @@ import { ESTADO_COLORS, ESTADO_LABELS, formatCOP } from "@/lib/coverage";
 import {
   ArrowLeft, MapPin, Mountain, Ruler, Calendar, AlertTriangle,
   CheckCircle, Clock, Building2, Landmark, Wheat, ShieldAlert,
-  Signal, GraduationCap, HeartPulse, Loader2,
+  Signal, GraduationCap, HeartPulse, Loader2, Banknote, Globe2,
 } from "lucide-react";
 
 const MunicipalMap = dynamic(() => import("@/components/map/MunicipalMap"), {
@@ -20,7 +20,7 @@ const MunicipalMap = dynamic(() => import("@/components/map/MunicipalMap"), {
   ),
 });
 
-type Tab = "general" | "educacion" | "salud" | "seguridad" | "agricultura" | "infraestructura" | "conflicto" | "clima" | "emergencias";
+type Tab = "general" | "educacion" | "salud" | "seguridad" | "agricultura" | "infraestructura" | "conflicto" | "clima" | "emergencias" | "economia" | "territorio";
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "general", label: "General", icon: Building2 },
@@ -31,6 +31,8 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "infraestructura", label: "Conectividad", icon: Signal },
   { id: "emergencias", label: "Emergencias", icon: AlertTriangle },
   { id: "conflicto", label: "Conflicto", icon: Landmark },
+  { id: "economia", label: "Economía", icon: Banknote },
+  { id: "territorio", label: "Territorio", icon: Globe2 },
   { id: "clima", label: "Clima", icon: Mountain },
 ];
 
@@ -45,6 +47,11 @@ function StatusIcon({ estado }: { estado: string }) {
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+// Tabs that trigger lazy-fetch of seguridad sub-endpoint
+const SEGURIDAD_TABS: Tab[] = ["seguridad", "conflicto"];
+// Tabs that trigger lazy-fetch of economia sub-endpoint
+const ECONOMIA_TABS: Tab[] = ["economia", "territorio", "salud", "infraestructura"];
+
 export default function MunicipioPage({ params }: { params: Promise<{ codigo: string }> }) {
   const { codigo } = use(params);
   const [municipio, setMunicipio] = useState<MunicipioIGAC | null>(null);
@@ -54,6 +61,12 @@ export default function MunicipioPage({ params }: { params: Promise<{ codigo: st
   const [loading, setLoading] = useState(true);
   const [enrichLoading, setEnrichLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>("general");
+
+  // Lazy-loaded sub-endpoint data
+  const [seguridadExtra, setSeguridadExtra] = useState<any>(null);
+  const [seguridadExtraLoading, setSeguridadExtraLoading] = useState(false);
+  const [economiaData, setEconomiaData] = useState<any>(null);
+  const [economiaLoading, setEconomiaLoading] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -101,6 +114,29 @@ export default function MunicipioPage({ params }: { params: Promise<{ codigo: st
       .finally(() => setEnrichLoading(false));
   }, [codigo, municipio]);
 
+  // Lazy-fetch: seguridad sub-endpoint
+  useEffect(() => {
+    if (!SEGURIDAD_TABS.includes(activeTab) || seguridadExtra || seguridadExtraLoading || !municipio) return;
+    setSeguridadExtraLoading(true);
+    fetch(`/api/municipios/${codigo}/seguridad`)
+      .then((r) => r.json())
+      .then(setSeguridadExtra)
+      .catch(() => setSeguridadExtra(null))
+      .finally(() => setSeguridadExtraLoading(false));
+  }, [activeTab, codigo, seguridadExtra, seguridadExtraLoading, municipio]);
+
+  // Lazy-fetch: economia sub-endpoint
+  useEffect(() => {
+    if (!ECONOMIA_TABS.includes(activeTab) || economiaData || economiaLoading || !municipio) return;
+    setEconomiaLoading(true);
+    const params = new URLSearchParams({ nombre: municipio.nombre });
+    fetch(`/api/municipios/${codigo}/economia?${params}`)
+      .then((r) => r.json())
+      .then(setEconomiaData)
+      .catch(() => setEconomiaData(null))
+      .finally(() => setEconomiaLoading(false));
+  }, [activeTab, codigo, economiaData, economiaLoading, municipio]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
@@ -125,6 +161,11 @@ export default function MunicipioPage({ params }: { params: Promise<{ codigo: st
   const sameDepto = allMunicipios
     .filter((m) => m.departamento === municipio.departamento && m.codigo !== municipio.codigo)
     .slice(0, 15);
+
+  // Is the current tab's lazy data still loading?
+  const tabLoading =
+    (SEGURIDAD_TABS.includes(activeTab) && seguridadExtraLoading) ||
+    (ECONOMIA_TABS.includes(activeTab) && economiaLoading);
 
   return (
     <div className="min-h-screen bg-gray-950">
@@ -259,21 +300,28 @@ export default function MunicipioPage({ params }: { params: Promise<{ codigo: st
           </div>
 
           <div className="mt-4">
-            {enrichLoading ? (
+            {enrichLoading && !SEGURIDAD_TABS.includes(activeTab) && !ECONOMIA_TABS.includes(activeTab) ? (
               <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-8 flex items-center justify-center">
                 <Loader2 className="w-6 h-6 text-gray-500 animate-spin" />
                 <span className="ml-3 text-gray-500">Consultando datos.gov.co...</span>
+              </div>
+            ) : tabLoading ? (
+              <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-8 flex items-center justify-center">
+                <Loader2 className="w-6 h-6 text-gray-500 animate-spin" />
+                <span className="ml-3 text-gray-500">Cargando datos adicionales...</span>
               </div>
             ) : (
               <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-5">
                 {activeTab === "general" && <GeneralTab municipio={municipio} enrichment={enrichment} />}
                 {activeTab === "educacion" && <EducacionTab enrichment={enrichment} />}
-                {activeTab === "salud" && <SaludTab enrichment={enrichment} />}
-                {activeTab === "seguridad" && <SeguridadTab enrichment={enrichment} />}
+                {activeTab === "salud" && <SaludTab enrichment={enrichment} economiaData={economiaData} />}
+                {activeTab === "seguridad" && <SeguridadTab enrichment={enrichment} seguridadExtra={seguridadExtra} />}
                 {activeTab === "agricultura" && <AgriculturaTab enrichment={enrichment} />}
-                {activeTab === "infraestructura" && <InfraestructuraTab enrichment={enrichment} />}
+                {activeTab === "infraestructura" && <InfraestructuraTab enrichment={enrichment} economiaData={economiaData} />}
                 {activeTab === "emergencias" && <EmergenciasTab enrichment={enrichment} />}
-                {activeTab === "conflicto" && <ConflictoTab enrichment={enrichment} />}
+                {activeTab === "conflicto" && <ConflictoTab enrichment={enrichment} seguridadExtra={seguridadExtra} />}
+                {activeTab === "economia" && <EconomiaTab economiaData={economiaData} />}
+                {activeTab === "territorio" && <TerritorioTab economiaData={economiaData} />}
                 {activeTab === "clima" && <ClimaTab enrichment={enrichment} />}
               </div>
             )}
@@ -334,69 +382,180 @@ function EducacionTab({ enrichment }: { enrichment: any }) {
   );
 }
 
-function SaludTab({ enrichment }: { enrichment: any }) {
+function SaludTab({ enrichment, economiaData }: { enrichment: any; economiaData: any }) {
   const salud = enrichment?.salud;
-  if (!salud || salud.totalIPS === 0) return <EmptyState text="No se encontraron IPS registradas para este municipio" />;
+  const bduaContrib = economiaData?.bduaContributivo ?? [];
+  const bduaSubs = economiaData?.bduaSubsidiado ?? [];
+  const hasBDUA = bduaContrib.length > 0 || bduaSubs.length > 0;
+
+  if ((!salud || salud.totalIPS === 0) && !hasBDUA) return <EmptyState text="No se encontraron datos de salud para este municipio" />;
   return (
-    <div className="space-y-4">
-      <h3 className="font-semibold text-white text-lg">Salud ({salud.totalIPS} IPS)</h3>
-      <p className="text-xs text-gray-500">Fuente: MinSalud REPS — datos.gov.co</p>
-      {Object.keys(salud.porNivel).length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-3">
-          {Object.entries(salud.porNivel).map(([nivel, count]) => (
-            <span key={nivel} className="px-3 py-1 bg-gray-700/50 rounded-full text-sm text-gray-300">
-              {nivel === "null" || nivel === "None" ? "Sin nivel" : `Nivel ${nivel}`}: <span className="font-mono text-white">{count as number}</span>
-            </span>
-          ))}
+    <div className="space-y-6">
+      <h3 className="font-semibold text-white text-lg">Salud</h3>
+      <p className="text-xs text-gray-500">Fuente: MinSalud REPS + BDUA — datos.gov.co</p>
+
+      {/* BDUA section */}
+      {hasBDUA && (
+        <div>
+          <h4 className="text-sm font-medium text-emerald-400 mb-3">Población Asegurada (BDUA)</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {bduaContrib.length > 0 && (
+              <div>
+                <p className="text-xs text-gray-500 mb-2">Régimen Contributivo</p>
+                <div className="space-y-1">
+                  {bduaContrib.slice(0, 8).map((e: any, i: number) => (
+                    <div key={i} className="flex justify-between text-sm">
+                      <span className="text-gray-400 truncate mr-2">{e.ent_nombre}</span>
+                      <span className="text-white font-mono flex-shrink-0">{Number(e.total).toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {bduaSubs.length > 0 && (
+              <div>
+                <p className="text-xs text-gray-500 mb-2">Régimen Subsidiado</p>
+                <div className="space-y-1">
+                  {bduaSubs.slice(0, 8).map((e: any, i: number) => (
+                    <div key={i} className="flex justify-between text-sm">
+                      <span className="text-gray-400 truncate mr-2">{e.ent_nombre}</span>
+                      <span className="text-white font-mono flex-shrink-0">{Number(e.total).toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead><tr className="border-b border-gray-700">
-            <th className="text-left py-2 text-gray-400">Nombre</th>
-            <th className="text-center py-2 text-gray-400">Nivel</th>
-            <th className="text-center py-2 text-gray-400">Carácter</th>
-            <th className="text-center py-2 text-gray-400">Habilitado</th>
-          </tr></thead>
-          <tbody>
-            {salud.establecimientos.map((ips: any, i: number) => (
-              <tr key={i} className="border-b border-gray-800">
-                <td className="py-2 text-gray-300 max-w-[300px] truncate">{ips.nombre}</td>
-                <td className="py-2 text-center text-gray-400">{ips.nivel ?? "—"}</td>
-                <td className="py-2 text-center text-gray-400">{ips.caracter ?? "—"}</td>
-                <td className="py-2 text-center">{ips.habilitado === "SI" ? <span className="text-green-400">Sí</span> : <span className="text-gray-600">No</span>}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+
+      {/* IPS section */}
+      {salud && salud.totalIPS > 0 && (
+        <div>
+          <h4 className="text-sm font-medium text-blue-400 mb-3">IPS Registradas ({salud.totalIPS})</h4>
+          {Object.keys(salud.porNivel).length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {Object.entries(salud.porNivel).map(([nivel, count]) => (
+                <span key={nivel} className="px-3 py-1 bg-gray-700/50 rounded-full text-sm text-gray-300">
+                  {nivel === "null" || nivel === "None" ? "Sin nivel" : `Nivel ${nivel}`}: <span className="font-mono text-white">{count as number}</span>
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b border-gray-700">
+                <th className="text-left py-2 text-gray-400">Nombre</th>
+                <th className="text-center py-2 text-gray-400">Nivel</th>
+                <th className="text-center py-2 text-gray-400">Carácter</th>
+                <th className="text-center py-2 text-gray-400">Habilitado</th>
+              </tr></thead>
+              <tbody>
+                {salud.establecimientos.map((ips: any, i: number) => (
+                  <tr key={i} className="border-b border-gray-800">
+                    <td className="py-2 text-gray-300 max-w-[300px] truncate">{ips.nombre}</td>
+                    <td className="py-2 text-center text-gray-400">{ips.nivel ?? "—"}</td>
+                    <td className="py-2 text-center text-gray-400">{ips.caracter ?? "—"}</td>
+                    <td className="py-2 text-center">{ips.habilitado === "SI" ? <span className="text-green-400">Sí</span> : <span className="text-gray-600">No</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function SeguridadTab({ enrichment }: { enrichment: any }) {
+function SeguridadTab({ enrichment, seguridadExtra }: { enrichment: any; seguridadExtra: any }) {
   const homicidios = enrichment?.homicidios ?? [];
-  if (homicidios.length === 0) return <EmptyState text="No se encontraron datos de homicidios para este municipio" />;
+  const delitosSexuales = seguridadExtra?.delitosSexuales ?? [];
+  const vif = seguridadExtra?.violenciaIntrafamiliar ?? [];
+  const hurtos = seguridadExtra?.hurtos ?? [];
+  const suicidios = seguridadExtra?.suicidios ?? [];
+
+  const totalDelitos = Number(delitosSexuales[0]?.total ?? 0);
+  const totalVIF = Number(vif[0]?.total ?? 0);
+  const totalHurtos = Number(hurtos[0]?.total ?? 0);
+
+  const hasAny = homicidios.length > 0 || totalDelitos > 0 || totalVIF > 0 || totalHurtos > 0 || suicidios.length > 0;
+  if (!hasAny) return <EmptyState text="No se encontraron datos de seguridad para este municipio" />;
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <h3 className="font-semibold text-white text-lg">Seguridad</h3>
-      <p className="text-xs text-gray-500">Fuente: Medicina Legal — datos.gov.co</p>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead><tr className="border-b border-gray-700">
-            <th className="text-left py-2 text-gray-400">Año</th>
-            <th className="text-right py-2 text-gray-400">Homicidios</th>
-          </tr></thead>
-          <tbody>
-            {homicidios.map((h: any, i: number) => (
-              <tr key={i} className="border-b border-gray-800">
-                <td className="py-2 text-gray-300">{h.a_o_del_hecho ?? h.a_o}</td>
-                <td className="py-2 text-right font-mono text-white">{h.cantidad}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <p className="text-xs text-gray-500">Fuente: Medicina Legal / Policía Nacional — datos.gov.co</p>
+
+      {/* Summary cards */}
+      {(totalDelitos > 0 || totalVIF > 0 || totalHurtos > 0) && (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {totalDelitos > 0 && (
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+              <p className="text-xs text-red-400">Delitos sexuales (total)</p>
+              <p className="text-2xl font-mono text-red-400">{totalDelitos.toLocaleString()}</p>
+            </div>
+          )}
+          {totalVIF > 0 && (
+            <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-3">
+              <p className="text-xs text-orange-400">Violencia intrafamiliar (total)</p>
+              <p className="text-2xl font-mono text-orange-400">{totalVIF.toLocaleString()}</p>
+            </div>
+          )}
+          {totalHurtos > 0 && (
+            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
+              <p className="text-xs text-yellow-400">Hurtos (total)</p>
+              <p className="text-2xl font-mono text-yellow-400">{totalHurtos.toLocaleString()}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Homicidios time series */}
+      {homicidios.length > 0 && (
+        <div>
+          <h4 className="text-sm font-medium text-red-400 mb-2">Homicidios por año</h4>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b border-gray-700">
+                <th className="text-left py-2 text-gray-400">Año</th>
+                <th className="text-right py-2 text-gray-400">Homicidios</th>
+              </tr></thead>
+              <tbody>
+                {homicidios.map((h: any, i: number) => (
+                  <tr key={i} className="border-b border-gray-800">
+                    <td className="py-2 text-gray-300">{h.a_o_del_hecho ?? h.a_o}</td>
+                    <td className="py-2 text-right font-mono text-white">{h.cantidad}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Suicidios time series */}
+      {suicidios.length > 0 && (
+        <div>
+          <h4 className="text-sm font-medium text-purple-400 mb-2">Suicidios por año</h4>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b border-gray-700">
+                <th className="text-left py-2 text-gray-400">Año</th>
+                <th className="text-right py-2 text-gray-400">Casos</th>
+              </tr></thead>
+              <tbody>
+                {suicidios.map((s: any, i: number) => (
+                  <tr key={i} className="border-b border-gray-800">
+                    <td className="py-2 text-gray-300">{s.anio}</td>
+                    <td className="py-2 text-right font-mono text-white">{s.cantidad}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -434,46 +593,82 @@ function AgriculturaTab({ enrichment }: { enrichment: any }) {
   );
 }
 
-function InfraestructuraTab({ enrichment }: { enrichment: any }) {
+function InfraestructuraTab({ enrichment, economiaData }: { enrichment: any; economiaData: any }) {
   const telco = enrichment?.telecomunicaciones ?? [];
+  const aeropuertos = economiaData?.aeropuertos ?? [];
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <h3 className="font-semibold text-white text-lg">Infraestructura y Conectividad</h3>
-      <p className="text-xs text-gray-500">Fuente: MinTIC — datos.gov.co</p>
-      {telco.length > 0 ? (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead><tr className="border-b border-gray-700">
-              <th className="text-left py-2 text-gray-400">Proveedor</th>
-              <th className="text-center py-2 text-gray-400">2G</th>
-              <th className="text-center py-2 text-gray-400">3G</th>
-              <th className="text-center py-2 text-gray-400">4G</th>
-              <th className="text-center py-2 text-gray-400">LTE</th>
-            </tr></thead>
-            <tbody>
-              {telco.map((t: any, i: number) => (
-                <tr key={i} className="border-b border-gray-800">
-                  <td className="py-2 text-gray-300">{t.proveedor ?? t.operador ?? "—"}</td>
-                  {[
-                    { key: "cobertura_2g", label: "2G" },
-                    { key: "cobertura_3g", label: "3G" },
-                    { key: "cobertuta_4g", label: "4G" },
-                    { key: "cobertura_lte", label: "LTE" },
-                  ].map(({ key }) => (
-                    <td key={key} className="py-2 text-center">
-                      {(t[key] === "S" || t[key] === "SI") ?
-                        <span className="text-green-400">Si</span> :
-                        <span className="text-gray-600">—</span>}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <p className="text-xs text-gray-500">Fuente: MinTIC + Aerocivil — datos.gov.co</p>
+
+      {/* Aeropuertos */}
+      {aeropuertos.length > 0 && (
+        <div>
+          <h4 className="text-sm font-medium text-blue-400 mb-2">Aeropuertos</h4>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b border-gray-700">
+                <th className="text-left py-2 text-gray-400">Nombre</th>
+                <th className="text-center py-2 text-gray-400">OACI</th>
+                <th className="text-center py-2 text-gray-400">IATA</th>
+                <th className="text-center py-2 text-gray-400">Operación</th>
+                <th className="text-right py-2 text-gray-400">Elevación (m)</th>
+              </tr></thead>
+              <tbody>
+                {aeropuertos.map((a: any, i: number) => (
+                  <tr key={i} className="border-b border-gray-800">
+                    <td className="py-2 text-gray-300">{a.nombre}</td>
+                    <td className="py-2 text-center text-gray-400 font-mono">{a.oasi}</td>
+                    <td className="py-2 text-center text-gray-400 font-mono">{a.iata?.toUpperCase()}</td>
+                    <td className="py-2 text-center text-gray-400">{a.operacion}</td>
+                    <td className="py-2 text-right font-mono text-white">{a.eleva_metros}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      ) : (
-        <EmptyState text="No se encontraron datos de cobertura telecomunicaciones" />
       )}
+
+      {/* Telco */}
+      {telco.length > 0 ? (
+        <div>
+          <h4 className="text-sm font-medium text-emerald-400 mb-2">Cobertura Telecomunicaciones</h4>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b border-gray-700">
+                <th className="text-left py-2 text-gray-400">Proveedor</th>
+                <th className="text-center py-2 text-gray-400">2G</th>
+                <th className="text-center py-2 text-gray-400">3G</th>
+                <th className="text-center py-2 text-gray-400">4G</th>
+                <th className="text-center py-2 text-gray-400">LTE</th>
+              </tr></thead>
+              <tbody>
+                {telco.map((t: any, i: number) => (
+                  <tr key={i} className="border-b border-gray-800">
+                    <td className="py-2 text-gray-300">{t.proveedor ?? t.operador ?? "—"}</td>
+                    {[
+                      { key: "cobertura_2g", label: "2G" },
+                      { key: "cobertura_3g", label: "3G" },
+                      { key: "cobertuta_4g", label: "4G" },
+                      { key: "cobertura_lte", label: "LTE" },
+                    ].map(({ key }) => (
+                      <td key={key} className="py-2 text-center">
+                        {(t[key] === "S" || t[key] === "SI") ?
+                          <span className="text-green-400">Si</span> :
+                          <span className="text-gray-600">—</span>}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : aeropuertos.length === 0 ? (
+        <EmptyState text="No se encontraron datos de infraestructura" />
+      ) : null}
     </div>
   );
 }
@@ -513,15 +708,22 @@ function EmergenciasTab({ enrichment }: { enrichment: any }) {
   );
 }
 
-function ConflictoTab({ enrichment }: { enrichment: any }) {
+function ConflictoTab({ enrichment, seguridadExtra }: { enrichment: any; seguridadExtra: any }) {
   const conflicto = enrichment?.conflicto;
   const map = conflicto?.victimasMAP ?? [];
   const masacres = conflicto?.masacres ?? [];
-  if (map.length === 0 && masacres.length === 0) return <EmptyState text="No se encontraron registros de conflicto armado para este municipio" />;
+  const ataques = seguridadExtra?.ataquesTerroristas ?? [];
+  const desaparicion = seguridadExtra?.desaparicionForzada ?? [];
+
+  if (map.length === 0 && masacres.length === 0 && ataques.length === 0 && desaparicion.length === 0) {
+    return <EmptyState text="No se encontraron registros de conflicto armado para este municipio" />;
+  }
+
   return (
     <div className="space-y-6">
       <h3 className="font-semibold text-white text-lg">Conflicto Armado</h3>
       <p className="text-xs text-gray-500">Fuente: SIEVCAC — datos.gov.co</p>
+
       {map.length > 0 && (
         <div>
           <h4 className="text-sm font-medium text-red-400 mb-2">Víctimas Minas Antipersonal (MAP/MUSE)</h4>
@@ -534,6 +736,7 @@ function ConflictoTab({ enrichment }: { enrichment: any }) {
           </div>
         </div>
       )}
+
       {masacres.length > 0 && (
         <div>
           <h4 className="text-sm font-medium text-orange-400 mb-2">Masacres</h4>
@@ -550,6 +753,194 @@ function ConflictoTab({ enrichment }: { enrichment: any }) {
                     <td className="py-2 text-gray-300">{m.a_o}</td>
                     <td className="py-2 text-right font-mono text-white">{m.casos}</td>
                     <td className="py-2 text-right font-mono text-orange-400">{m.victimas}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {ataques.length > 0 && (
+        <div>
+          <h4 className="text-sm font-medium text-yellow-400 mb-2">Ataques Terroristas</h4>
+          <div className="flex flex-wrap gap-2">
+            {ataques.map((a: any, i: number) => (
+              <span key={i} className="px-3 py-1 bg-yellow-500/10 border border-yellow-500/20 rounded-full text-sm">
+                <span className="text-gray-400">{a.a_o}:</span> <span className="text-yellow-400 font-mono">{a.cantidad}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {desaparicion.length > 0 && (
+        <div>
+          <h4 className="text-sm font-medium text-purple-400 mb-2">Desaparición Forzada</h4>
+          <div className="flex flex-wrap gap-2">
+            {desaparicion.map((d: any, i: number) => (
+              <span key={i} className="px-3 py-1 bg-purple-500/10 border border-purple-500/20 rounded-full text-sm">
+                <span className="text-gray-400">{d.a_o}:</span> <span className="text-purple-400 font-mono">{d.cantidad}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EconomiaTab({ economiaData }: { economiaData: any }) {
+  const sgr = economiaData?.sgr ?? [];
+  const mineria = economiaData?.mineria ?? [];
+
+  if (sgr.length === 0 && mineria.length === 0) {
+    return <EmptyState text="No se encontraron datos económicos para este municipio" />;
+  }
+
+  return (
+    <div className="space-y-6">
+      <h3 className="font-semibold text-white text-lg">Economía</h3>
+      <p className="text-xs text-gray-500">Fuente: SGR + ANM — datos.gov.co</p>
+
+      {/* SGR Projects */}
+      {sgr.length > 0 && (
+        <div>
+          <h4 className="text-sm font-medium text-emerald-400 mb-2">Proyectos SGR ({sgr.length})</h4>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b border-gray-700">
+                <th className="text-left py-2 text-gray-400">Proyecto</th>
+                <th className="text-center py-2 text-gray-400">Estado</th>
+                <th className="text-center py-2 text-gray-400">Sector</th>
+                <th className="text-right py-2 text-gray-400">Valor</th>
+                <th className="text-right py-2 text-gray-400">Ejec. Física</th>
+              </tr></thead>
+              <tbody>
+                {sgr.map((p: any, i: number) => (
+                  <tr key={i} className="border-b border-gray-800">
+                    <td className="py-2 text-gray-300 max-w-[300px] truncate">{p.nombre}</td>
+                    <td className="py-2 text-center">
+                      <span className={`px-2 py-0.5 rounded-full text-xs ${
+                        p.estado === "TERMINADO" ? "bg-green-500/10 text-green-400" :
+                        p.estado === "EN EJECUCIÓN" ? "bg-blue-500/10 text-blue-400" :
+                        "bg-gray-700 text-gray-400"
+                      }`}>{p.estado}</span>
+                    </td>
+                    <td className="py-2 text-center text-gray-400 text-xs">{p.sector}</td>
+                    <td className="py-2 text-right font-mono text-white">{formatCOP(p.valorTotal)}</td>
+                    <td className="py-2 text-right font-mono text-gray-400">{p.ejecucionFisica}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Minería */}
+      {mineria.length > 0 && (
+        <div>
+          <h4 className="text-sm font-medium text-yellow-400 mb-2">Producción Minera</h4>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b border-gray-700">
+                <th className="text-left py-2 text-gray-400">Mineral</th>
+                <th className="text-right py-2 text-gray-400">Año</th>
+                <th className="text-right py-2 text-gray-400">Volumen</th>
+                <th className="text-right py-2 text-gray-400">Unidad</th>
+                <th className="text-right py-2 text-gray-400">Regalías</th>
+              </tr></thead>
+              <tbody>
+                {mineria.slice(0, 20).map((m: any, i: number) => (
+                  <tr key={i} className="border-b border-gray-800">
+                    <td className="py-2 text-gray-300">{m.mineral}</td>
+                    <td className="py-2 text-right text-gray-400">{m.anio}</td>
+                    <td className="py-2 text-right font-mono text-white">{Number(m.volumen ?? 0).toLocaleString()}</td>
+                    <td className="py-2 text-right text-gray-400">{m.unidad}</td>
+                    <td className="py-2 text-right font-mono text-emerald-400">{m.regalias ? formatCOP(Number(m.regalias)) : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TerritorioTab({ economiaData }: { economiaData: any }) {
+  const nbi = economiaData?.nbi;
+  const densidad = economiaData?.densidad;
+  const generalidades = economiaData?.generalidades;
+  const edSuperior = economiaData?.educacionSuperior ?? [];
+
+  const hasAny = nbi || densidad || generalidades || edSuperior.length > 0;
+  if (!hasAny) return <EmptyState text="No se encontraron datos territoriales para este municipio" />;
+
+  return (
+    <div className="space-y-6">
+      <h3 className="font-semibold text-white text-lg">Territorio</h3>
+      <p className="text-xs text-gray-500">Fuente: IGAC + MEN — datos.gov.co</p>
+
+      {/* NBI + Densidad summary cards */}
+      {(nbi || densidad) && (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {nbi?.nbi != null && (
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+              <p className="text-xs text-blue-400">NBI (%)</p>
+              <p className="text-2xl font-mono text-blue-400">{nbi.nbi.toFixed(1)}</p>
+              {nbi.rango && <p className="text-xs text-gray-500 mt-1">{nbi.rango}</p>}
+            </div>
+          )}
+          {densidad?.poblacion != null && (
+            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3">
+              <p className="text-xs text-emerald-400">Población</p>
+              <p className="text-2xl font-mono text-emerald-400">{densidad.poblacion.toLocaleString()}</p>
+              {densidad.rangoArea && <p className="text-xs text-gray-500 mt-1">{densidad.rangoArea}</p>}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Generalidades */}
+      {generalidades && (
+        <div>
+          <h4 className="text-sm font-medium text-gray-300 mb-2">Generalidades del Municipio</h4>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {Object.entries(generalidades)
+              .filter(([k]) => !k.startsWith("OBJECTID") && !k.startsWith("Shape") && !k.startsWith("MpCodigo"))
+              .slice(0, 12)
+              .map(([key, value]) => (
+                <div key={key} className="bg-gray-700/30 rounded-lg p-3">
+                  <p className="text-xs text-gray-500 truncate">{key.replace(/_/g, " ")}</p>
+                  <p className="text-sm font-mono text-white">{value != null ? String(value) : "—"}</p>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
+      {/* Educación Superior */}
+      {edSuperior.length > 0 && (
+        <div>
+          <h4 className="text-sm font-medium text-purple-400 mb-2">Educación Superior</h4>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b border-gray-700">
+                <th className="text-left py-2 text-gray-400">Programa</th>
+                <th className="text-left py-2 text-gray-400">IES</th>
+                <th className="text-right py-2 text-gray-400">Año</th>
+                <th className="text-right py-2 text-gray-400">Matriculados</th>
+              </tr></thead>
+              <tbody>
+                {edSuperior.slice(0, 20).map((e: any, i: number) => (
+                  <tr key={i} className="border-b border-gray-800">
+                    <td className="py-2 text-gray-300 max-w-[200px] truncate">{e.programa_acad_mico}</td>
+                    <td className="py-2 text-gray-400 max-w-[200px] truncate">{e.instituci_n_de_educaci_n_superior_ies}</td>
+                    <td className="py-2 text-right text-gray-400">{e.a_o}-{e.semestre}</td>
+                    <td className="py-2 text-right font-mono text-white">{Number(e.matriculados).toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
