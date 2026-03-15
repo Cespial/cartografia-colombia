@@ -129,32 +129,32 @@ export default function MunicipioPage({ params }: { params: Promise<{ codigo: st
   return (
     <div className="min-h-screen bg-gray-950">
       {/* Header */}
-      <header className="bg-gray-900/95 backdrop-blur-sm border-b border-gray-800 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center gap-4">
-          <Link href="/" className="p-2 hover:bg-gray-800 rounded-lg transition-colors">
+      <header className="bg-gray-900/95 backdrop-blur-sm border-b border-gray-800 px-3 sm:px-6 py-3 sm:py-4">
+        <div className="max-w-7xl mx-auto flex items-center gap-3">
+          <Link href="/" className="p-1.5 sm:p-2 hover:bg-gray-800 rounded-lg transition-colors flex-shrink-0">
             <ArrowLeft className="w-5 h-5 text-gray-400" />
           </Link>
-          <div className="flex-1">
-            <h1 className="text-xl font-bold text-white">{municipio.nombre}</h1>
-            <Link href={`/departamento/${encodeURIComponent(municipio.departamento)}`} className="text-sm text-gray-500 hover:text-gray-300 transition-colors">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-base sm:text-xl font-bold text-white truncate">{municipio.nombre}</h1>
+            <Link href={`/departamento/${encodeURIComponent(municipio.departamento)}`} className="text-xs sm:text-sm text-gray-500 hover:text-gray-300 transition-colors">
               {municipio.departamento}
             </Link>
           </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium"
+          <div className="flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium flex-shrink-0"
             style={{
               backgroundColor: ESTADO_COLORS[municipio.estadoRural] + "20",
               color: ESTADO_COLORS[municipio.estadoRural],
               border: `1px solid ${ESTADO_COLORS[municipio.estadoRural]}40`,
             }}>
             <StatusIcon estado={municipio.estadoRural} />
-            {ESTADO_LABELS[municipio.estadoRural]}
+            <span className="hidden sm:inline">{ESTADO_LABELS[municipio.estadoRural]}</span>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-6 space-y-6">
-        {/* Stats cards — expanded */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
+        {/* Stats cards — responsive: 2 cols mobile, 3 tablet, 6 desktop */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
           {[
             { icon: MapPin, label: "Código DANE", value: municipio.codigo },
             { icon: Ruler, label: "Área", value: municipio.area ? `${Math.round(municipio.area).toLocaleString()} km²` : "—" },
@@ -176,7 +176,7 @@ export default function MunicipioPage({ params }: { params: Promise<{ codigo: st
         {/* Map */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
-            <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl overflow-hidden h-[500px]">
+            <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl overflow-hidden h-[280px] sm:h-[400px] lg:h-[500px]">
               <MunicipalMap geojson={municipioGeoJSON} name={municipio.nombre} />
             </div>
           </div>
@@ -246,14 +246,14 @@ export default function MunicipioPage({ params }: { params: Promise<{ codigo: st
 
         {/* Enrichment tabs — datos.gov.co */}
         <div>
-          <div className="flex gap-1 p-1 bg-gray-800/50 rounded-lg overflow-x-auto">
+          <div className="flex gap-0.5 sm:gap-1 p-1 bg-gray-800/50 rounded-lg overflow-x-auto scrollbar-hide">
             {TABS.map((tab) => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-all whitespace-nowrap ${
+                className={`flex items-center gap-1 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-md text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
                   activeTab === tab.id ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"
                 }`}>
-                <tab.icon className="w-4 h-4" />
-                {tab.label}
+                <tab.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">{tab.label}</span>
               </button>
             ))}
           </div>

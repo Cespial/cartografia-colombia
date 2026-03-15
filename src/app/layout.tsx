@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -12,10 +12,19 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#030712",
+};
+
 export const metadata: Metadata = {
   title: "Cartografía Colombia — Estado Catastral Municipal",
   description:
-    "Mapa interactivo del estado cartográfico y catastral de los 1,122 municipios de Colombia. Identifica brechas de cobertura.",
+    "Mapa interactivo del estado cartográfico y catastral de los 1,122 municipios de Colombia. Identifica brechas de cobertura. Un desarrollo de tensor.lat",
+  authors: [{ name: "tensor.lat" }],
 };
 
 export default function RootLayout({
@@ -26,7 +35,7 @@ export default function RootLayout({
   return (
     <html lang="es" className="dark">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-950 text-white`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-950 text-white overscroll-none`}
       >
         {children}
       </body>
